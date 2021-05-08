@@ -81,7 +81,6 @@
     <Build Include="staging\Tables\Source_EventCategory.sql" />
     <Build Include="staging\Tables\Source_Geography.sql" />
     <Build Include="ETL\Tables\ControlTable.sql" />
-    <Build Include="ETL\Tables\Temp_ControlTable.sql" />
     <Build Include="dbo\Views\vReportingSales.sql" />
     <Build Include="Security\adf_user.sql" />
     <Build Include="Security\RoleMemberships.sql" />
@@ -92,7 +91,6 @@
     <Build Include="dbo\Stored Procedures\Build_DimGeography.sql" />
     <Build Include="dbo\Stored Procedures\Build_DimChannel.sql" />
     <Build Include="dbo\Stored Procedures\Build_DimCategory.sql" />
-    <Build Include="staging\Stored Procedures\Build_SourceTables_withID.sql" />
     <Build Include="staging\Stored Procedures\Build_SourceTables.sql" />
     <Build Include="Security\staging.sql" />
     <Build Include="Security\ETL.sql" />
