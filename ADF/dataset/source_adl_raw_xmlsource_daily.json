@@ -1,0 +1,19 @@
+{
+	"name": "source_adl_raw_xmlsource_daily",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_adl_toptaleventplat",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Xml",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"folderPath": "raw/sales-xml-source",
+				"fileSystem": "event-platform-daily"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
