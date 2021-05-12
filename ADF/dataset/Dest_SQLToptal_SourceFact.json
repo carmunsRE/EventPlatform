@@ -2,7 +2,7 @@
 	"name": "Dest_SQLToptal_SourceFact",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "ls_sqldb_toptal",
+			"referenceName": "ls_sqldb_toptal_copy",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],
@@ -49,8 +49,8 @@
 			}
 		],
 		"typeProperties": {
-			"schema": "staging",
-			"table": "Source_FactSales"
+			"schema": "dbo",
+			"table": "FactSales"
 		}
 	},
 	"type": "Microsoft.DataFactory/factories/datasets"
