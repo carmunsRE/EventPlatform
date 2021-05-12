@@ -10,7 +10,7 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"folderPath": "raw/sales-csv-source/2021-02",
+				"folderPath": "raw/sales-csv-source",
 				"fileSystem": "event-platform"
 			},
 			"columnDelimiter": ",",
