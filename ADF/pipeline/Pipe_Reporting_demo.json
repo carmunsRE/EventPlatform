@@ -113,7 +113,7 @@
 					"storedProcedureName": "[dbo].[Build_Taxonomy]"
 				},
 				"linkedServiceName": {
-					"referenceName": "ls_sqldb_toptal",
+					"referenceName": "ls_sqldb_toptal_copy",
 					"type": "LinkedServiceReference"
 				}
 			}
