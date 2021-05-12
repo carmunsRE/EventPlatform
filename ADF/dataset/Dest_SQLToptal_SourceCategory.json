@@ -2,7 +2,7 @@
 	"name": "Dest_SQLToptal_SourceCategory",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "ls_sqldb_toptal",
+			"referenceName": "ls_sqldb_toptal_copy",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],
