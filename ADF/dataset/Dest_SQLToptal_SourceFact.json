@@ -49,8 +49,8 @@
 			}
 		],
 		"typeProperties": {
-			"schema": "dbo",
-			"table": "FactSales"
+			"schema": "staging",
+			"table": "Source_FactSales"
 		}
 	},
 	"type": "Microsoft.DataFactory/factories/datasets"
