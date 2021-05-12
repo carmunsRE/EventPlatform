@@ -2,7 +2,7 @@
 	"name": "Dest_SQLToptal_SourceReseller",
 	"properties": {
 		"linkedServiceName": {
-			"referenceName": "ls_sqldb_toptal",
+			"referenceName": "ls_sqldb_toptal_copy",
 			"type": "LinkedServiceReference"
 		},
 		"annotations": [],
@@ -14,8 +14,8 @@
 			}
 		],
 		"typeProperties": {
-			"schema": "staging",
-			"table": "Source_Reseller"
+			"schema": "dbo",
+			"table": "DimReseller"
 		}
 	},
 	"type": "Microsoft.DataFactory/factories/datasets"
