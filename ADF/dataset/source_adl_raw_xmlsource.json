@@ -10,7 +10,7 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"folderPath": "raw/sales-xml-source/2021-01",
+				"folderPath": "raw/sales-xml-source",
 				"fileSystem": "event-platform"
 			}
 		}
