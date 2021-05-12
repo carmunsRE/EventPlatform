@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-eventplat-prod"
+		},
+		"ls_sqldb_repes_connectionString": {
+			"value": ""
+		},
+		"ls_sqldb_toptal_connectionString": {
+			"value": ""
+		},
+		"ls_sqldb_toptal_copy_connectionString": {
+			"value": ""
+		},
+		"ls_adl_toptaleventplat_properties_typeProperties_url": {
+			"value": "https://dlstoptaleventplat.dfs.core.windows.net"
+		},
+		"ls_kv_toptaleventplat_properties_typeProperties_baseUrl": {
+			"value": "https://kv-toptaleventplat.vault.azure.net/"
+		}
+	}
+}

@@ -1,0 +1,2694 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-eventplat-prod"
+		},
+		"ls_sqldb_repes_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_sqldb_repes'"
+		},
+		"ls_sqldb_toptal_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_sqldb_toptal'"
+		},
+		"ls_sqldb_toptal_copy_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_sqldb_toptal_copy'"
+		},
+		"ls_adl_toptaleventplat_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://dlstoptaleventplat.dfs.core.windows.net"
+		},
+		"ls_kv_toptaleventplat_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kv-toptaleventplat.vault.azure.net/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/MasterPipe')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Ingest_SQLSource",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Pipe_Raw",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "CleanTransform_AllSources",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Ingest_SQLSource",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Pipe_Clean",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Reporting_SendSources",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "CleanTransform_AllSources",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Pipe_Reporting",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:52Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Pipe_Raw')]",
+				"[concat(variables('factoryId'), '/pipelines/Pipe_Clean')]",
+				"[concat(variables('factoryId'), '/pipelines/Pipe_Reporting')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/MasterPipe_demo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Ingest_SQLSource",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Pipe_Raw_demo",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "CleanTransform_AllSources",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Ingest_SQLSource",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Pipe_Clean",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Reporting_SendSources",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "CleanTransform_AllSources",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "Pipe_Reporting",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:52Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Pipe_Raw_demo')]",
+				"[concat(variables('factoryId'), '/pipelines/Pipe_Clean')]",
+				"[concat(variables('factoryId'), '/pipelines/Pipe_Reporting')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Pipe_Clean')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Master Files",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SubPipe_Clean_MasterFiles",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Execute Sink SQL",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Master Files",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SubPipe_Clean_SinkSQLSources",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Execute Sink CSV",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Master Files",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SubPipe_Clean_SinkCSVSources",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Execute Sink XML",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Master Files",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "SubPipe_Clean_SinkXMLSources",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:51Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/SubPipe_Clean_MasterFiles')]",
+				"[concat(variables('factoryId'), '/pipelines/SubPipe_Clean_SinkSQLSources')]",
+				"[concat(variables('factoryId'), '/pipelines/SubPipe_Clean_SinkCSVSources')]",
+				"[concat(variables('factoryId'), '/pipelines/SubPipe_Clean_SinkXMLSources')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Pipe_Raw')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Copy huge amount of data in bulk from database using external control table to store source table list with partitions for each table.\n\nWhen you want to migrate data from your Azure Synapse Analytics like Oracle server, Netezza server, Teradata server or SQL Server to Azure, you have to load huge amount of data from multiple tables in data sources. In most cases, data has to be further partitioned in each table so that you can load rows with multiple threads in parallel from single table.",
+				"activities": [
+					{
+						"name": "GetPartitionList",
+						"description": "Lookup activity to retrieve the list of partitions stored in the external control table.",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlSource",
+								"sqlReaderQuery": {
+									"value": "select @{pipeline().parameters.Control_Table_Schema_PartitionID} as PartitionID, @{pipeline().parameters.Control_Table_Schema_SourceTableName} as SourceTableName, @{pipeline().parameters.Control_Table_Schema_FilterQuery} as FilterQuery,\n@{pipeline().parameters.Control_Table_Schema_PartitionDate} as PartitionDate from @{pipeline().parameters.Control_Table_Name}",
+									"type": "Expression"
+								},
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "source_sqldb_toptal_controltable",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": {
+										"value": "@pipeline().parameters.Control_Table_Name",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachPartition",
+						"description": "ForEach activity to get the partition list from Lookup activity and then iterate each of them to Copy activity. ",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetPartitionList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetPartitionList').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 30,
+							"activities": [
+								{
+									"name": "CopyOnePartition",
+									"description": "Copy activity to copy each partition from source database store to destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlSource",
+											"sqlReaderQuery": {
+												"value": "@item().FilterQuery",
+												"type": "Expression"
+											},
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "source_sqldb_repes",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "destination_adl_raw_sqlsource",
+											"type": "DatasetReference",
+											"parameters": {
+												"Data_Destination_Container": {
+													"value": "@pipeline().parameters.Data_Destination_Container",
+													"type": "Expression"
+												},
+												"Data_Destination_Directory": {
+													"value": "@pipeline().parameters.Data_Destination_Directory",
+													"type": "Expression"
+												},
+												"File_Name": {
+													"value": "@concat(item().SourceTableName,'-',item().PartitionDate,'-',utcnow('yyyy-MM-ddTHH:mm:ss'),'.csv')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"Control_Table_Name": {
+						"type": "String",
+						"defaultValue": "ETL.ControlTable"
+					},
+					"Control_Table_Schema_PartitionID": {
+						"type": "String",
+						"defaultValue": "PartitionID"
+					},
+					"Control_Table_Schema_SourceTableName": {
+						"type": "String",
+						"defaultValue": "SourceTableName"
+					},
+					"Control_Table_Schema_FilterQuery": {
+						"type": "String",
+						"defaultValue": "FilterQuery"
+					},
+					"Data_Destination_Container": {
+						"type": "String",
+						"defaultValue": "event-platform"
+					},
+					"Data_Destination_Directory": {
+						"type": "String",
+						"defaultValue": "raw/sales-sql-source"
+					},
+					"Control_Table_Schema_PartitionDate": {
+						"type": "string",
+						"defaultValue": "PartitionDate"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:50Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_sqldb_toptal_controltable')]",
+				"[concat(variables('factoryId'), '/datasets/source_sqldb_repes')]",
+				"[concat(variables('factoryId'), '/datasets/destination_adl_raw_sqlsource')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Pipe_Raw_demo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Copy huge amount of data in bulk from database using external control table to store source table list with partitions for each table.\n\nWhen you want to migrate data from your Azure Synapse Analytics like Oracle server, Netezza server, Teradata server or SQL Server to Azure, you have to load huge amount of data from multiple tables in data sources. In most cases, data has to be further partitioned in each table so that you can load rows with multiple threads in parallel from single table.",
+				"activities": [
+					{
+						"name": "GetPartitionList",
+						"description": "Lookup activity to retrieve the list of partitions stored in the external control table.",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlSource",
+								"sqlReaderQuery": {
+									"value": "select @{pipeline().parameters.Control_Table_Schema_PartitionID} as PartitionID, @{pipeline().parameters.Control_Table_Schema_SourceTableName} as SourceTableName, @{pipeline().parameters.Control_Table_Schema_FilterQuery} as FilterQuery,\n@{pipeline().parameters.Control_Table_Schema_PartitionDate} as PartitionDate from @{pipeline().parameters.Control_Table_Name}",
+									"type": "Expression"
+								},
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "source_sqldb_toptal_controltable",
+								"type": "DatasetReference",
+								"parameters": {
+									"TableName": {
+										"value": "@pipeline().parameters.Control_Table_Name",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachPartition",
+						"description": "ForEach activity to get the partition list from Lookup activity and then iterate each of them to Copy activity. ",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetPartitionList",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetPartitionList').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 30,
+							"activities": [
+								{
+									"name": "CopyOnePartition",
+									"description": "Copy activity to copy each partition from source database store to destination store.",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "7.00:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "SqlSource",
+											"sqlReaderQuery": {
+												"value": "@item().FilterQuery",
+												"type": "Expression"
+											},
+											"partitionOption": "None"
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".txt"
+											}
+										},
+										"enableStaging": false,
+										"dataIntegrationUnits": 0
+									},
+									"inputs": [
+										{
+											"referenceName": "source_sqldb_repes",
+											"type": "DatasetReference",
+											"parameters": {}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "destination_adl_raw_sqlsource",
+											"type": "DatasetReference",
+											"parameters": {
+												"Data_Destination_Container": {
+													"value": "@pipeline().parameters.Data_Destination_Container",
+													"type": "Expression"
+												},
+												"Data_Destination_Directory": {
+													"value": "@pipeline().parameters.Data_Destination_Directory",
+													"type": "Expression"
+												},
+												"File_Name": {
+													"value": "@concat(item().SourceTableName,'-',item().PartitionDate,'-',utcnow('yyyy-MM-ddTHH:mm:ss'),'.csv')",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					}
+				],
+				"parameters": {
+					"Control_Table_Name": {
+						"type": "String",
+						"defaultValue": "ETL.ControlTable_demo"
+					},
+					"Control_Table_Schema_PartitionID": {
+						"type": "String",
+						"defaultValue": "PartitionID"
+					},
+					"Control_Table_Schema_SourceTableName": {
+						"type": "String",
+						"defaultValue": "SourceTableName"
+					},
+					"Control_Table_Schema_FilterQuery": {
+						"type": "String",
+						"defaultValue": "FilterQuery"
+					},
+					"Data_Destination_Container": {
+						"type": "String",
+						"defaultValue": "event-platform"
+					},
+					"Data_Destination_Directory": {
+						"type": "String",
+						"defaultValue": "raw/sales-sql-source"
+					},
+					"Control_Table_Schema_PartitionDate": {
+						"type": "string",
+						"defaultValue": "PartitionDate"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:50Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_sqldb_toptal_controltable')]",
+				"[concat(variables('factoryId'), '/datasets/source_sqldb_repes')]",
+				"[concat(variables('factoryId'), '/datasets/destination_adl_raw_sqlsource')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Pipe_Reporting')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "DropCreateSinkTables",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "staging.Build_SourceTables"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sqldb_toptal",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "IngestMasterReporting",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "DropCreateSinkTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "IngestMasterToReporting",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceGeography": {},
+									"SourceEventCategory": {},
+									"SourceResellers": {},
+									"SinkSourceGeography": {},
+									"SinkSourceCategory": {},
+									"SinkSourceReseller": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "IngestSalesReporting",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "DropCreateSinkTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "IngestSalesReporting",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SQLSources": {},
+									"CSVSources": {},
+									"XMLSources": {},
+									"SinkSourceFactSales": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "Taxonomy",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IngestMasterReporting",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "IngestSalesReporting",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[Build_Taxonomy]"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sqldb_toptal",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:41:04Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal')]",
+				"[concat(variables('factoryId'), '/dataflows/IngestMasterToReporting')]",
+				"[concat(variables('factoryId'), '/dataflows/IngestSalesReporting')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SubPipe_Clean_MasterFiles')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CreateMasterFiles",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "CreateMasterFiles",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sqlsourcefiles": {},
+									"SinkMasterEvents": {},
+									"SinkMasterReseller": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:50Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/CreateMasterFiles')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SubPipe_Clean_SinkCSVSources')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SinkCSVSource",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "SinkCSVSource",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"csvsourcefiles": {},
+									"MasterGeography": {},
+									"MasterReseller": {},
+									"MasterEvent": {},
+									"SinkCSVSources": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:50Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/SinkCSVSource')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SubPipe_Clean_SinkSQLSources')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SinkSQLSource",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "SinkSQLSource",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sqlsourcefiles": {},
+									"MasterGeography": {},
+									"SinkSQLSources": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:50Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/SinkSQLSource')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SubPipe_Clean_SinkXMLSources')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "SinkXMLSource",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "SinkXMLSource",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"xmlsourcefiles": {},
+									"MasterGeography": {},
+									"MasterReseller": {},
+									"MasterEvent": {},
+									"SinkCSVSources": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:31:50Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/dataflows/SinkXMLSource')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Dest_SQLToptal_SourceCategory')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_toptal_copy",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Category",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SubCategory",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "staging",
+					"table": "Source_EventCategory"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal_copy')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Dest_SQLToptal_SourceFact')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_toptal_copy",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Reseller",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SalesChannel",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Category",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SubCategory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					},
+					{
+						"name": "PurchasedDate",
+						"type": "date"
+					},
+					{
+						"name": "PurchasedTickets",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "TotalAmount",
+						"type": "money",
+						"precision": 19,
+						"scale": 4
+					}
+				],
+				"typeProperties": {
+					"schema": "staging",
+					"table": "Source_FactSales"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal_copy')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Dest_SQLToptal_SourceReseller')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_toptal_copy",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "Reseller",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "DimReseller"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal_copy')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SQLDB_Toptal_SourceGeography')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_toptal",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "GeographyID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "staging",
+					"table": "Source_Geography"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/destination_adl_clean_csv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "clean/sales-csv-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/destination_adl_clean_sql')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "clean/sales-sql-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/destination_adl_clean_xml')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "clean/sales-xml-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/destination_adl_master')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "master",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/destination_adl_raw_sqlsource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Connection to your data destination store.",
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"Data_Destination_Container": {
+						"type": "String"
+					},
+					"Data_Destination_Directory": {
+						"type": "String"
+					},
+					"File_Name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@{dataset().File_Name}",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@{dataset().Data_Destination_Directory}",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@{dataset().Data_Destination_Container}",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sqldb_repes_TM_Events')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_repes",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "EventID",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EventName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Type",
+						"type": "nvarchar"
+					},
+					{
+						"name": "EventDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SalesDate",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Category",
+						"type": "nvarchar"
+					},
+					{
+						"name": "SubCategory",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Promoter",
+						"type": "nvarchar"
+					},
+					{
+						"name": "minPriceTickets",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "maxPriceTickets",
+						"type": "float",
+						"precision": 15
+					},
+					{
+						"name": "VenueName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "CityName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "StateName",
+						"type": "nvarchar"
+					},
+					{
+						"name": "CountryCode",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "TM_Events"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_repes')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_cleanCSV')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "clean/sales-csv-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_cleanSQL')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "clean/sales-sql-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_cleanXML')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "clean/sales-xml-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "TransactionID",
+						"type": "String"
+					},
+					{
+						"name": "MonthID",
+						"type": "String"
+					},
+					{
+						"name": "ResellerID",
+						"type": "String"
+					},
+					{
+						"name": "Reseller",
+						"type": "String"
+					},
+					{
+						"name": "SalesChannel",
+						"type": "String"
+					},
+					{
+						"name": "Event",
+						"type": "String"
+					},
+					{
+						"name": "EventDate",
+						"type": "String"
+					},
+					{
+						"name": "Category",
+						"type": "String"
+					},
+					{
+						"name": "SubCategory",
+						"type": "String"
+					},
+					{
+						"name": "Country",
+						"type": "String"
+					},
+					{
+						"name": "Region",
+						"type": "String"
+					},
+					{
+						"name": "City",
+						"type": "String"
+					},
+					{
+						"name": "CustomerFirstName",
+						"type": "String"
+					},
+					{
+						"name": "CustomerLastName",
+						"type": "String"
+					},
+					{
+						"name": "PurchasedDate",
+						"type": "String"
+					},
+					{
+						"name": "PurchasedTickets",
+						"type": "String"
+					},
+					{
+						"name": "TotalAmount",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_masterGeography')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "MasterGeography.csv",
+						"folderPath": "master",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "City",
+						"type": "String"
+					},
+					{
+						"name": "Region",
+						"type": "String"
+					},
+					{
+						"name": "Country",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_masterGeography_daily')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "MasterGeography.csv",
+						"folderPath": "master",
+						"fileSystem": "event-platform-daily"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "City",
+						"type": "String"
+					},
+					{
+						"name": "Region",
+						"type": "String"
+					},
+					{
+						"name": "Country",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_masterevent')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "MasterEvents.csv",
+						"folderPath": "master",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Event",
+						"type": "String"
+					},
+					{
+						"name": "Category",
+						"type": "String"
+					},
+					{
+						"name": "SubCategory",
+						"type": "String"
+					},
+					{
+						"name": "City",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_masterevent_daily')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "MasterEvents.csv",
+						"folderPath": "master",
+						"fileSystem": "event-platform-daily"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Event",
+						"type": "String"
+					},
+					{
+						"name": "Category",
+						"type": "String"
+					},
+					{
+						"name": "SubCategory",
+						"type": "String"
+					},
+					{
+						"name": "City",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_masterreseller')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "MasterResellers.csv",
+						"folderPath": "master",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Reseller",
+						"type": "String"
+					},
+					{
+						"name": "ResellerID",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_masterreseller_daily')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "MasterResellers.csv",
+						"folderPath": "master",
+						"fileSystem": "event-platform-daily"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Reseller",
+						"type": "String"
+					},
+					{
+						"name": "ResellerID",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_raw_csvsource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "raw/sales-csv-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "Transaction_x0020_ID",
+						"type": "String"
+					},
+					{
+						"name": "Event_x0020_name",
+						"type": "String"
+					},
+					{
+						"name": "Number_x0020_of_x0020_purchased_x0020_tickets",
+						"type": "String"
+					},
+					{
+						"name": "Total_x0020_amount",
+						"type": "String"
+					},
+					{
+						"name": "Sales_x0020_channel",
+						"type": "String"
+					},
+					{
+						"name": "Customer_x0020_first_x0020_name",
+						"type": "String"
+					},
+					{
+						"name": "Customer_x0020_last_x0020_name",
+						"type": "String"
+					},
+					{
+						"name": "Office_x0020_location",
+						"type": "String"
+					},
+					{
+						"name": "Created_Date",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_raw_sqlsource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "raw/sales-sql-source",
+						"fileSystem": "event-platform"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "TransactionID",
+						"type": "String"
+					},
+					{
+						"name": "Event Name",
+						"type": "String"
+					},
+					{
+						"name": "Event Date",
+						"type": "String"
+					},
+					{
+						"name": "Event Venue",
+						"type": "String"
+					},
+					{
+						"name": "Purchased Date",
+						"type": "String"
+					},
+					{
+						"name": "Purchased Tickets",
+						"type": "String"
+					},
+					{
+						"name": "Total Amount",
+						"type": "String"
+					},
+					{
+						"name": "Sales Channel",
+						"type": "String"
+					},
+					{
+						"name": "Customer First Name",
+						"type": "String"
+					},
+					{
+						"name": "Customer Last Name",
+						"type": "String"
+					},
+					{
+						"name": "Office Location",
+						"type": "String"
+					},
+					{
+						"name": "Reseller",
+						"type": "String"
+					},
+					{
+						"name": "Event Category",
+						"type": "String"
+					},
+					{
+						"name": "Event SubCategory",
+						"type": "String"
+					},
+					{
+						"name": "Venue City",
+						"type": "String"
+					},
+					{
+						"name": "Venue State",
+						"type": "String"
+					},
+					{
+						"name": "Venue Country",
+						"type": "String"
+					},
+					{
+						"name": "MonthID",
+						"type": "String"
+					},
+					{
+						"name": "ResellerID",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_raw_xmlsource')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Xml",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "raw/sales-xml-source",
+						"fileSystem": "event-platform"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_adl_raw_xmlsource_daily')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adl_toptaleventplat",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Xml",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "raw/sales-xml-source",
+						"fileSystem": "event-platform-daily"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_adl_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_sqldb_repes')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Connection to your data source store.",
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_repes",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": ""
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_repes')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_sqldb_toptal_controltable')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "The external control table is used to store the partition list of data source tables.",
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_toptal",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"TableName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/source_sqldb_toptal_controltable_demo')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "The external control table is used to store the partition list of data source tables.",
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_toptal",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"TableName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": {
+						"value": "@dataset().TableName",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_adl_toptaleventplat')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('ls_adl_toptaleventplat_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "ls_kv_toptaleventplat",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "secret-dls-toptaleventplat"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_kv_toptaleventplat')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_kv_toptaleventplat')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureKeyVault",
+				"typeProperties": {
+					"baseUrl": "[parameters('ls_kv_toptaleventplat_properties_typeProperties_baseUrl')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_sqldb_repes')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_sqldb_repes_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_sqldb_toptal')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_sqldb_toptal_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CreateMasterFiles')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "source_adl_raw_sqlsource",
+								"type": "DatasetReference"
+							},
+							"name": "sqlsourcefiles"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "destination_adl_master",
+								"type": "DatasetReference"
+							},
+							"name": "SinkMasterEvents"
+						},
+						{
+							"dataset": {
+								"referenceName": "destination_adl_master",
+								"type": "DatasetReference"
+							},
+							"name": "SinkMasterReseller"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CleanUpColumns"
+						},
+						{
+							"name": "DistinctEvents"
+						},
+						{
+							"name": "DistinctReseller"
+						}
+					],
+					"script": "source(output(\n\t\tTransactionID as integer '000',\n\t\t{Event Name} as string,\n\t\t{Event Date} as date 'yyyy-MM-dd',\n\t\t{Event Venue} as string,\n\t\t{Purchased Date} as date 'yyyy-MM-dd',\n\t\t{Purchased Tickets} as integer '000',\n\t\t{Total Amount} as string,\n\t\t{Sales Channel} as string,\n\t\t{Customer First Name} as string,\n\t\t{Customer Last Name} as string,\n\t\t{Office Location} as string,\n\t\tReseller as string,\n\t\t{Event Category} as string,\n\t\t{Event SubCategory} as string,\n\t\t{Venue City} as string,\n\t\t{Venue State} as string,\n\t\t{Venue Country} as string,\n\t\tMonthID as integer '000',\n\t\tResellerID as integer '000'\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> sqlsourcefiles\nsqlsourcefiles derive(CleanCategory = case({Event Category}=='' || isNull({Event Category}) ,'Undefined',{Event Category}),\n\t\tCleanSubCategory = case({Event SubCategory}=='' || isNull({Event SubCategory}) ,'Undefined',{Event SubCategory}),\n\t\tCleanCity = replace(trim({Venue City}),'  ',' '),\n\t\tCleanEvent = replace(trim({Event Name}),'  ',' ')) ~> CleanUpColumns\nCleanUpColumns aggregate(groupBy(CleanCategory,\n\t\tCleanSubCategory,\n\t\tCleanCity,\n\t\tCleanEvent),\n\tTotal = count(TransactionID)) ~> DistinctEvents\nsqlsourcefiles aggregate(groupBy(Reseller,\n\t\tResellerID),\n\tTotal = count(TransactionID)) ~> DistinctReseller\nDistinctEvents sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['MasterEvents.csv'],\n\tmapColumn(\n\t\tEvent = CleanEvent,\n\t\tCategory = CleanCategory,\n\t\tSubCategory = CleanSubCategory,\n\t\tCity = CleanCity\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkMasterEvents\nDistinctReseller sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['MasterResellers.csv'],\n\tmapColumn(\n\t\tReseller,\n\t\tResellerID\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkMasterReseller"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_adl_raw_sqlsource')]",
+				"[concat(variables('factoryId'), '/datasets/destination_adl_master')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IngestMasterToReporting')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterGeography",
+								"type": "DatasetReference"
+							},
+							"name": "SourceGeography"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterevent",
+								"type": "DatasetReference"
+							},
+							"name": "SourceEventCategory"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterreseller",
+								"type": "DatasetReference"
+							},
+							"name": "SourceResellers"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "SQLDB_Toptal_SourceGeography_demo",
+								"type": "DatasetReference"
+							},
+							"name": "SinkSourceGeography"
+						},
+						{
+							"dataset": {
+								"referenceName": "Dest_SQLToptal_SourceCategory",
+								"type": "DatasetReference"
+							},
+							"name": "SinkSourceCategory"
+						},
+						{
+							"dataset": {
+								"referenceName": "Dest_SQLToptal_SourceReseller",
+								"type": "DatasetReference"
+							},
+							"name": "SinkSourceReseller"
+						}
+					],
+					"transformations": [
+						{
+							"name": "DistinctRegion"
+						},
+						{
+							"name": "RemoveNulls"
+						},
+						{
+							"name": "DistrinctSubCat"
+						},
+						{
+							"name": "CleanReseller"
+						},
+						{
+							"name": "FilterNULL"
+						}
+					],
+					"script": "source(output(\n\t\tCity as string,\n\t\tRegion as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> SourceGeography\nsource(output(\n\t\tEvent as string,\n\t\tCategory as string,\n\t\tSubCategory as string,\n\t\tCity as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> SourceEventCategory\nsource(output(\n\t\tReseller as string,\n\t\tResellerID as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> SourceResellers\nSourceGeography aggregate(groupBy(Country,\n\t\tRegion),\n\tTotal = count(City)) ~> DistinctRegion\nDistinctRegion derive(CleanRegion = case(isNull(Region)||Region == 'NULL',Country,Region)) ~> RemoveNulls\nSourceEventCategory aggregate(groupBy(Category,\n\t\tSubCategory),\n\tTotal = count(Event)) ~> DistrinctSubCat\nSourceResellers derive(CleanReseller = case(!isNull(ResellerID)||Reseller=='VENUE ORGANIZER', Reseller)) ~> CleanReseller\nCleanReseller filter(!isNull(CleanReseller)) ~> FilterNULL\nRemoveNulls sink(input(\n\t\tGeographyID as integer,\n\t\tCountry as string,\n\t\tRegion as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCountry,\n\t\tRegion = CleanRegion\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> SinkSourceGeography\nDistrinctSubCat sink(input(\n\t\tCategory as string,\n\t\tSubCategory as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tCategory,\n\t\tSubCategory\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> SinkSourceCategory\nFilterNULL sink(input(\n\t\tReseller as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tReseller = CleanReseller\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> SinkSourceReseller"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterGeography')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterevent')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterreseller')]",
+				"[concat(variables('factoryId'), '/datasets/SQLDB_Toptal_SourceGeography_demo')]",
+				"[concat(variables('factoryId'), '/datasets/Dest_SQLToptal_SourceCategory')]",
+				"[concat(variables('factoryId'), '/datasets/Dest_SQLToptal_SourceReseller')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IngestSalesReporting')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "source_adl_cleanSQL",
+								"type": "DatasetReference"
+							},
+							"name": "SQLSources"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_cleanCSV",
+								"type": "DatasetReference"
+							},
+							"name": "CSVSources"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_cleanXML",
+								"type": "DatasetReference"
+							},
+							"name": "XMLSources"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "Dest_SQLToptal_SourceFact",
+								"type": "DatasetReference"
+							},
+							"name": "SinkSourceFactSales"
+						}
+					],
+					"transformations": [
+						{
+							"name": "Union1"
+						},
+						{
+							"name": "Aggregate1"
+						},
+						{
+							"name": "CleanRegion"
+						}
+					],
+					"script": "source(output(\n\t\tTransactionID as integer,\n\t\tMonthID as integer,\n\t\tResellerID as short,\n\t\tReseller as string,\n\t\tSalesChannel as string,\n\t\tEvent as string,\n\t\tEventDate as date,\n\t\tCategory as string,\n\t\tSubCategory as string,\n\t\tCountry as string,\n\t\tRegion as string,\n\t\tCity as string,\n\t\tCustomerFirstName as string,\n\t\tCustomerLastName as string,\n\t\tPurchasedDate as date,\n\t\tPurchasedTickets as short,\n\t\tTotalAmount as double\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> SQLSources\nsource(output(\n\t\tTransactionID as integer,\n\t\tMonthID as integer,\n\t\tResellerID as short,\n\t\tReseller as string,\n\t\tSalesChannel as string,\n\t\tEvent as string,\n\t\tEventDate as date,\n\t\tCategory as string,\n\t\tSubCategory as string,\n\t\tCountry as string,\n\t\tRegion as string,\n\t\tCity as string,\n\t\tCustomerFirstName as string,\n\t\tCustomerLastName as string,\n\t\tPurchasedDate as date,\n\t\tPurchasedTickets as short,\n\t\tTotalAmount as double\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> CSVSources\nsource(output(\n\t\tTransactionID as integer,\n\t\tMonthID as integer,\n\t\tResellerID as short,\n\t\tReseller as string,\n\t\tSalesChannel as string,\n\t\tEvent as string,\n\t\tEventDate as date,\n\t\tCategory as string,\n\t\tSubCategory as string,\n\t\tCountry as string,\n\t\tRegion as string,\n\t\tCity as string,\n\t\tCustomerFirstName as string,\n\t\tCustomerLastName as string,\n\t\tPurchasedDate as date,\n\t\tPurchasedTickets as short,\n\t\tTotalAmount as double\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> XMLSources\nSQLSources, CSVSources, XMLSources union(byName: true)~> Union1\nUnion1 aggregate(groupBy(Reseller,\n\t\tSalesChannel,\n\t\tCategory,\n\t\tSubCategory,\n\t\tCountry,\n\t\tRegion,\n\t\tPurchasedDate),\n\tPurchasedTickets = sum(PurchasedTickets),\n\t\tTotalAmount = sum(TotalAmount)) ~> Aggregate1\nAggregate1 derive(CleanRegion = case(isNull(Region)||Region == 'NULL',Country,Region)) ~> CleanRegion\nCleanRegion sink(input(\n\t\tReseller as string,\n\t\tSalesChannel as string,\n\t\tCategory as string,\n\t\tSubCategory as string,\n\t\tCountry as string,\n\t\tRegion as string,\n\t\tPurchasedDate as date,\n\t\tPurchasedTickets as integer,\n\t\tTotalAmount as decimal(19,4)\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tmapColumn(\n\t\tReseller,\n\t\tSalesChannel,\n\t\tCategory,\n\t\tSubCategory,\n\t\tCountry,\n\t\tRegion = CleanRegion,\n\t\tPurchasedDate,\n\t\tPurchasedTickets,\n\t\tTotalAmount\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> SinkSourceFactSales"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_adl_cleanSQL')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_cleanCSV')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_cleanXML')]",
+				"[concat(variables('factoryId'), '/datasets/Dest_SQLToptal_SourceFact')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SinkCSVSource')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "source_adl_raw_csvsource",
+								"type": "DatasetReference"
+							},
+							"name": "csvsourcefiles"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterGeography",
+								"type": "DatasetReference"
+							},
+							"name": "MasterGeography"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterreseller",
+								"type": "DatasetReference"
+							},
+							"name": "MasterReseller"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterevent",
+								"type": "DatasetReference"
+							},
+							"name": "MasterEvent"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "destination_adl_clean_csv",
+								"type": "DatasetReference"
+							},
+							"name": "SinkCSVSources"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CleanUpColumns"
+						},
+						{
+							"name": "LookupGeography"
+						},
+						{
+							"name": "Region"
+						},
+						{
+							"name": "LookupReseller"
+						},
+						{
+							"name": "LookupEvent"
+						}
+					],
+					"script": "source(output(\n\t\tTransaction_x0020_ID as integer '000',\n\t\tEvent_x0020_name as string,\n\t\tNumber_x0020_of_x0020_purchased_x0020_tickets as integer '000',\n\t\tTotal_x0020_amount as string,\n\t\tSales_x0020_channel as string,\n\t\tCustomer_x0020_first_x0020_name as string,\n\t\tCustomer_x0020_last_x0020_name as string,\n\t\tOffice_x0020_location as string,\n\t\tCreated_Date as date 'yyyy-MM-dd'\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false,\n\trowUrlColumn: 'SourceFileName') ~> csvsourcefiles\nsource(output(\n\t\tCity as string,\n\t\tRegion as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> MasterGeography\nsource(output(\n\t\tReseller as string,\n\t\tResellerID as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> MasterReseller\nsource(output(\n\t\tEvent as string,\n\t\tCategory as string,\n\t\tSubCategory as string,\n\t\tCity as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> MasterEvent\ncsvsourcefiles derive(ResellerID = left(right(SourceFileName,5),1),\n\t\tPurchasedDate = toDate(substring(SourceFileName,locate('DailySales_', SourceFileName)+length('DailySales_'),length('1900-01-01')),'yyyy-MM-dd')) ~> CleanUpColumns\nCleanUpColumns, MasterGeography lookup(trim(Office_x0020_location) == City,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupGeography\nLookupEvent derive(CleanRegion = case(isNull(Region),Country,Region),\n\t\tMonthID = toInteger(toString(PurchasedDate, 'yyyyMM'))) ~> Region\nLookupGeography, MasterReseller lookup(trim(CleanUpColumns@ResellerID) == MasterReseller@ResellerID,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupReseller\nLookupReseller, MasterEvent lookup(trim(Event_x0020_name) == Event\n\t&& trim(Office_x0020_location) == MasterEvent@City,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupEvent\nRegion sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tfilePattern:(concat('Clean-EventsSalesCSV-Partition[n] - ',toString(currentUTC(),'yyyy-MM-dd'),'.csv')),\n\ttruncate: true,\n\tmapColumn(\n\t\tTransactionID = Transaction_x0020_ID,\n\t\tMonthID,\n\t\tResellerID = CleanUpColumns@ResellerID,\n\t\tReseller,\n\t\tSalesChannel = Sales_x0020_channel,\n\t\tEvent = Event_x0020_name,\n\t\tEventDate = Created_Date,\n\t\tCategory,\n\t\tSubCategory,\n\t\tCountry,\n\t\tRegion,\n\t\tCity = MasterGeography@City,\n\t\tCustomerFirstName = Customer_x0020_first_x0020_name,\n\t\tCustomerLastName = Customer_x0020_last_x0020_name,\n\t\tPurchasedDate,\n\t\tPurchasedTickets = Number_x0020_of_x0020_purchased_x0020_tickets,\n\t\tTotalAmount = Total_x0020_amount\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkCSVSources"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_adl_raw_csvsource')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterGeography')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterreseller')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterevent')]",
+				"[concat(variables('factoryId'), '/datasets/destination_adl_clean_csv')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SinkSQLSource')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "source_adl_raw_sqlsource",
+								"type": "DatasetReference"
+							},
+							"name": "sqlsourcefiles"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterGeography",
+								"type": "DatasetReference"
+							},
+							"name": "MasterGeography"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "destination_adl_clean_sql",
+								"type": "DatasetReference"
+							},
+							"name": "SinkSQLSources"
+						}
+					],
+					"transformations": [
+						{
+							"name": "CleanUpColumns"
+						},
+						{
+							"name": "LookupGeography"
+						},
+						{
+							"name": "Region"
+						}
+					],
+					"script": "source(output(\n\t\tTransactionID as integer '000',\n\t\t{Event Name} as string,\n\t\t{Event Date} as date 'yyyy-MM-dd',\n\t\t{Event Venue} as string,\n\t\t{Purchased Date} as date 'yyyy-MM-dd',\n\t\t{Purchased Tickets} as integer '000',\n\t\t{Total Amount} as string,\n\t\t{Sales Channel} as string,\n\t\t{Customer First Name} as string,\n\t\t{Customer Last Name} as string,\n\t\t{Office Location} as string,\n\t\tReseller as string,\n\t\t{Event Category} as string,\n\t\t{Event SubCategory} as string,\n\t\t{Venue City} as string,\n\t\t{Venue State} as string,\n\t\t{Venue Country} as string,\n\t\tMonthID as integer '000',\n\t\tResellerID as integer '000'\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> sqlsourcefiles\nsource(output(\n\t\tCity as string,\n\t\tRegion as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> MasterGeography\nsqlsourcefiles derive(CleanCategory = case({Event Category}=='' || isNull({Event Category}) ,'Undefined',{Event Category}),\n\t\tCleanSubCategory = case({Event SubCategory}=='' || isNull({Event SubCategory}) ,'Undefined',{Event SubCategory}),\n\t\tCleanCity = replace(trim({Venue City}),'  ',' '),\n\t\tCleanEvent = replace(trim({Event Name}),'  ',' ')) ~> CleanUpColumns\nCleanUpColumns, MasterGeography lookup(CleanCity == City,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupGeography\nLookupGeography derive(CleanRegion = case(isNull(Region),Country,Region)) ~> Region\nRegion sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tfilePattern:(concat('Clean-EventsSalesSQL-Partition[n] - ',toString(currentUTC(),'yyyy-MM-dd'),'.csv')),\n\ttruncate: true,\n\tmapColumn(\n\t\tTransactionID,\n\t\tMonthID,\n\t\tResellerID,\n\t\tReseller,\n\t\tSalesChannel = {Sales Channel},\n\t\tEvent = CleanEvent,\n\t\tEventDate = {Event Date},\n\t\tCategory = CleanCategory,\n\t\tSubCategory = CleanSubCategory,\n\t\tCountry,\n\t\tRegion = CleanRegion,\n\t\tCity,\n\t\tCustomerFirstName = {Customer First Name},\n\t\tCustomerLastName = {Customer Last Name},\n\t\tPurchasedDate = {Purchased Date},\n\t\tPurchasedTickets = {Purchased Tickets},\n\t\tTotalAmount = {Total Amount}\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkSQLSources"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_adl_raw_sqlsource')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterGeography')]",
+				"[concat(variables('factoryId'), '/datasets/destination_adl_clean_sql')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SinkXMLSource')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "source_adl_raw_xmlsource",
+								"type": "DatasetReference"
+							},
+							"name": "xmlsourcefiles"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterGeography",
+								"type": "DatasetReference"
+							},
+							"name": "MasterGeography"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterreseller",
+								"type": "DatasetReference"
+							},
+							"name": "MasterReseller"
+						},
+						{
+							"dataset": {
+								"referenceName": "source_adl_masterevent",
+								"type": "DatasetReference"
+							},
+							"name": "MasterEvent"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "destination_adl_clean_xml",
+								"type": "DatasetReference"
+							},
+							"name": "SinkCSVSources"
+						}
+					],
+					"transformations": [
+						{
+							"name": "LookupGeography"
+						},
+						{
+							"name": "Region"
+						},
+						{
+							"name": "LookupReseller"
+						},
+						{
+							"name": "LookupEvent"
+						},
+						{
+							"name": "FlattenXML"
+						}
+					],
+					"script": "source(output(\n\t\ttransactions as ({@date} as date, {@reseller-id} as short, transaction as ({@id} as integer, customer as (firstName as string, lastName as string), dateCreated as string, eventName as string, numberOfPurchasedTickets as short, officeLocation as string, salesChannel as string, totalAmount as double)[])\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: true,\n\tignoreNoFilesFound: false,\n\tvalidationMode: 'none',\n\tnamespaces: false) ~> xmlsourcefiles\nsource(output(\n\t\tCity as string,\n\t\tRegion as string,\n\t\tCountry as string\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> MasterGeography\nsource(output(\n\t\tReseller as string,\n\t\tResellerID as string\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> MasterReseller\nsource(output(\n\t\tEvent as string,\n\t\tCategory as string,\n\t\tSubCategory as string,\n\t\tCity as string\n\t),\n\tallowSchemaDrift: false,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> MasterEvent\nFlattenXML, MasterGeography lookup(trim(FlattenXML@City) == MasterGeography@City,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupGeography\nLookupEvent derive(CleanRegion = case(isNull(Region),Country,Region),\n\t\tMonthID = toInteger(toString(PurchasedDate, 'yyyyMM'))) ~> Region\nLookupGeography, MasterReseller lookup(toString(FlattenXML@ResellerID) == MasterReseller@ResellerID,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupReseller\nLookupReseller, MasterEvent lookup(trim(FlattenXML@Event) == MasterEvent@Event\n\t&& trim(FlattenXML@City) == MasterEvent@City,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupEvent\nxmlsourcefiles foldDown(unroll(transactions.transaction, transactions.transaction),\n\tmapColumn(\n\t\tPurchasedDate = transactions.{@date},\n\t\tResellerID = transactions.{@reseller-id},\n\t\tTransactionID = transactions.transaction.{@id},\n\t\tCustomerFirstName = transactions.transaction.customer.firstName,\n\t\tCustomerLastName = transactions.transaction.customer.lastName,\n\t\tEventDate = transactions.transaction.dateCreated,\n\t\tEvent = transactions.transaction.eventName,\n\t\tPurchasedTickets = transactions.transaction.numberOfPurchasedTickets,\n\t\tCity = transactions.transaction.officeLocation,\n\t\tSalesChannel = transactions.transaction.salesChannel,\n\t\tTotalAmount = transactions.transaction.totalAmount\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> FlattenXML\nRegion sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tfilePattern:(concat('Clean-EventsSalesXML-Partition[n] - ',toString(currentUTC(),'yyyy-MM-dd'),'.csv')),\n\ttruncate: true,\n\tmapColumn(\n\t\tTransactionID,\n\t\tMonthID,\n\t\tResellerID = MasterReseller@ResellerID,\n\t\tReseller,\n\t\tSalesChannel,\n\t\tEvent = FlattenXML@Event,\n\t\tEventDate,\n\t\tCategory,\n\t\tSubCategory,\n\t\tCountry,\n\t\tRegion,\n\t\tCity = MasterGeography@City,\n\t\tCustomerFirstName,\n\t\tCustomerLastName,\n\t\tPurchasedDate,\n\t\tPurchasedTickets,\n\t\tTotalAmount\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkCSVSources"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/source_adl_raw_xmlsource')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterGeography')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterreseller')]",
+				"[concat(variables('factoryId'), '/datasets/source_adl_masterevent')]",
+				"[concat(variables('factoryId'), '/datasets/destination_adl_clean_xml')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_sqldb_toptal_copy')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_sqldb_toptal_copy_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Pipe_Reporting_demo')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "DropCreateSinkTables",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "staging.Build_SourceTables"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sqldb_toptal_copy",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "IngestMasterReporting",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "DropCreateSinkTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "IngestMasterToReporting",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SourceGeography": {},
+									"SourceEventCategory": {},
+									"SourceResellers": {},
+									"SinkSourceGeography": {},
+									"SinkSourceCategory": {},
+									"SinkSourceReseller": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "IngestSalesReporting",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "DropCreateSinkTables",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "IngestSalesReporting",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"SQLSources": {},
+									"CSVSources": {},
+									"XMLSources": {},
+									"SinkSourceFactSales": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
+					},
+					{
+						"name": "Taxonomy",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IngestMasterReporting",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "IngestSalesReporting",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "7.00:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[Build_Taxonomy]"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sqldb_toptal_copy",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"annotations": [],
+				"lastPublishTime": "2021-05-07T18:41:04Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal_copy')]",
+				"[concat(variables('factoryId'), '/dataflows/IngestMasterToReporting')]",
+				"[concat(variables('factoryId'), '/dataflows/IngestSalesReporting')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SQLDB_Toptal_SourceGeography_demo')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sqldb_toptal_copy",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "GeographyID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "Region",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "staging",
+					"table": "Source_Geography"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sqldb_toptal_copy')]"
+			]
+		}
+	]
+}
